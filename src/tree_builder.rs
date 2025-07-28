@@ -22,6 +22,8 @@ use crate::{
 pub enum MergeChunk<'a> {
     Stable(ChunkData<'a>),
     Unstable(ChunkData<'a>),
+    CommutativeResolutionStart { parent_kind: &'static str },
+    CommutativeResolutionEnd { parent_kind: &'static str },
 }
 
 #[derive(Debug, Default)]
@@ -76,7 +78,7 @@ fn format_node_list_detailed(nodes: &Vec<&AstNode>) -> String {
         summary.push_str("...");
     }
     
-    format!("{} nós {} {}", nodes.len(), range, summary)
+    format!("{} nodes {} {}", nodes.len(), range, summary)
 }
 
 /// An internal structure to map a parent and a predecessor to a possible successor in each revision
@@ -168,19 +170,31 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
         if let Some(final_log_state) = log_state {
             info!("\n--- MERGIRAF CHUNK DEBUG LOG ---");
             info!("===========================================================");
-            for (i, chunk) in final_log_state.log.iter().enumerate() {
+            
+            let mut chunk_counter = 0;
+            
+            for chunk in final_log_state.log.iter() {
                 match chunk {
                     MergeChunk::Stable(data) => {
-                        info!("-- stable chunk #{} --", i + 1);
+                        chunk_counter += 1;
+                        info!("-- stable chunk #{} --", chunk_counter);
                         info!("    Left (L):  {}", format_node_list_detailed(&data.left_nodes));
                         info!("    Base (B):  {}", format_node_list_detailed(&data.base_nodes));
                         info!("    Right (R): {}", format_node_list_detailed(&data.right_nodes));
                     }
                     MergeChunk::Unstable(data) => {
-                        info!("-- unstable chunk #{} --", i + 1);
+                        chunk_counter += 1;
+                        info!("-- unstable chunk #{} --", chunk_counter);
                         info!("    Left (L):  {}", format_node_list_detailed(&data.left_nodes));
                         info!("    Base (B):  {}", format_node_list_detailed(&data.base_nodes));
                         info!("    Right (R): {}", format_node_list_detailed(&data.right_nodes));
+                    }
+                    MergeChunk::CommutativeResolutionStart { parent_kind } => {
+                        info!("---> START: UNORDERED MERGE CONFLICT RESOLUTION FOR '{}'...", parent_kind);
+                    }
+                    MergeChunk::CommutativeResolutionEnd { parent_kind } => {
+                        info!("<--- END: UNORDERED MERGE CONFLICT RESOLUTION FOR '{}'.", parent_kind);
+                        info!("-----------------------------------------------------------");
                     }
                 }
                 info!("-----------------------------------------------------------");
@@ -375,14 +389,21 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
                     };
 
                     if let Some(ls) = log_state.as_mut(){
-                        ls.current_unstable.base_nodes.extend(base.iter());
-                        ls.current_unstable.left_nodes.extend(left.iter());
-                        ls.current_unstable.right_nodes.extend(right.iter());
+                        let mut conflict_chunk_data = ChunkData::default();
+                        conflict_chunk_data.base_nodes.extend(base.iter());
+                        conflict_chunk_data.left_nodes.extend(left.iter());
+                        conflict_chunk_data.right_nodes.extend(right.iter());
+                        ls.log.push(MergeChunk::Unstable(conflict_chunk_data));
                     }
                     
                     if let PCSNode::Node { node: leader, .. } = node
                         && let Some(commutative_parent) = leader.commutative_parent_definition()
                     {
+
+                        if let Some(ls) = log_state.as_mut(){
+                            ls.log.push(MergeChunk::CommutativeResolutionStart{parent_kind: leader.grammar_name()});
+                        }
+                        
                         // knowing that the order of all elements of the conflict does not matter, solve the conflict
                         let solved_conflict = self.commutatively_merge_lists(
                             &base,
@@ -392,6 +413,11 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
                             visiting_state,
                             log_state
                         )?;
+
+                        if let Some(ls) = log_state.as_mut(){
+                            ls.log.push(MergeChunk::CommutativeResolutionEnd{parent_kind: leader.grammar_name()});
+                        }
+
                         children.extend(solved_conflict);
                     } else {
                         children.extend(MergedTree::new_conflict(
