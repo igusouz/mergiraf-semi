@@ -84,7 +84,8 @@ impl<'a> MergedTree<'a> {
                     previous_sibling = match *c {
                         Self::ExactTree { node, .. }
                         | Self::MixedTree { node, .. }
-                        | Self::LineBasedMerge { node, .. } => {
+                        | Self::LineBasedMerge { node, .. }
+                        | Self::TextuallyMerged { node, .. } => {
                             Some(PreviousSibling::RealNode(node))
                         }
                         Self::Conflict { .. } => None,
@@ -149,6 +150,22 @@ impl<'a> MergedTree<'a> {
             }
             Self::CommutativeChildSeparator { separator, .. } => {
                 output.push_merged(Cow::from(*separator));
+            }
+            
+            Self::TextuallyMerged { node, content, has_conflict } => {
+                let _new_indentation = Self::add_preceding_whitespace(
+                    output,
+                    node,
+                    previous_sibling,
+                    indentation,
+                    class_mapping,
+                );
+
+                if *has_conflict {
+                    output.push_conflict(Cow::from(""), Cow::from(content.clone()), Cow::from(""));
+                } else {
+                    output.push_merged(Cow::from(content.clone()));
+                }
             }
         }
     }

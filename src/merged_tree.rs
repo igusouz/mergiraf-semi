@@ -68,6 +68,17 @@ pub enum MergedTree<'a> {
     /// A synthetic part of the merged output, not taken from any revision, added
     /// to separate merged children of a commutative parent.
     CommutativeChildSeparator { separator: &'a str },
+
+    /// A node whose content was merged textually as a single block.
+    /// This is used for our semi-structured strategy where the tree is truncated.
+    TextuallyMerged {
+        /// The original node from the AST that was truncated.
+        node: Leader<'a>,
+        /// The new text content, resulting from a textual merge (e.g., diff3).
+        content: String,
+        /// Indicates if the textual merge resulted in conflicts.
+        has_conflict: bool,
+    },
 }
 
 impl<'a> MergedTree<'a> {
@@ -101,6 +112,7 @@ impl<'a> MergedTree<'a> {
                 Self::Conflict { .. } => 1,
                 Self::LineBasedMerge { .. } => 2,
                 Self::CommutativeChildSeparator { .. } => 3,
+                Self::TextuallyMerged { .. } => 4,
             })
             .collect_vec()
             .hash(&mut hasher);
@@ -171,6 +183,7 @@ impl<'a> MergedTree<'a> {
             Self::ExactTree { node, .. }
             | Self::LineBasedMerge { node, .. }
             | Self::MixedTree { node, .. } => class_mapping.field_name(node),
+            | Self::TextuallyMerged { node, .. } => class_mapping.field_name(node),
             Self::Conflict { .. } | Self::CommutativeChildSeparator { .. } => None,
         }
     }
@@ -181,6 +194,7 @@ impl<'a> MergedTree<'a> {
             Self::ExactTree { node, .. }
             | Self::LineBasedMerge { node, .. }
             | Self::MixedTree { node, .. } => Some(node.grammar_name()),
+            | Self::TextuallyMerged { node, .. } => Some(node.grammar_name()),
             Self::Conflict { .. } | Self::CommutativeChildSeparator { .. } => None,
         }
     }
@@ -291,6 +305,7 @@ impl<'a> MergedTree<'a> {
                     .collect();
                 Self::new_mixed(node, cloned_children)
             }
+            Self::TextuallyMerged { .. } => self,
             _ => self,
         }
     }
@@ -324,6 +339,7 @@ impl<'a> MergedTree<'a> {
                     .any(|n| RevNode::new(Revision::Right, n).contains(leader, class_mapping)),
             },
             Self::LineBasedMerge { node, .. } => node == leader,
+            Self::TextuallyMerged { node, .. } => node == leader,
             Self::CommutativeChildSeparator { .. } => false,
         }
     }
@@ -434,7 +450,7 @@ impl<'a> MergedTree<'a> {
                         }
                     })
             }
-            MergedTree::LineBasedMerge { .. } => {
+            MergedTree::LineBasedMerge { .. } | MergedTree::TextuallyMerged { .. } => {
                 // See above
                 true
             }
@@ -483,6 +499,9 @@ impl<'a> MergedTree<'a> {
             Self::CommutativeChildSeparator { separator } => {
                 format!("CommutativeChildSeparator({})", separator.escape_debug())
             }
+            Self::TextuallyMerged { node, has_conflict, .. } => {
+                format!("TextuallyMerged({node}, conflict: {has_conflict})")
+            }
         };
         result.push_str(&c);
         result
@@ -498,7 +517,9 @@ impl<'a> MergedTree<'a> {
             MergedTree::ExactTree { node, .. }
             | MergedTree::MixedTree { node, .. }
             | MergedTree::LineBasedMerge { node, .. } => node.signature_definition(),
-            MergedTree::Conflict { .. } | MergedTree::CommutativeChildSeparator { .. } => None,
+            MergedTree::TextuallyMerged { .. }
+            | MergedTree::Conflict { .. } 
+            | MergedTree::CommutativeChildSeparator { .. } => None,
         }?;
         let signature = definition.extract_signature_from_merged_node(self, class_mapping);
         Some(signature)

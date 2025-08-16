@@ -31,6 +31,8 @@ pub(crate) mod merged_text;
 pub(crate) mod merged_tree;
 pub(crate) mod multimap;
 pub mod newline;
+pub mod textual_merge;
+pub mod textual_merge_strategy;
 pub(crate) mod parsed_merge;
 mod path_buf_ext;
 pub(crate) mod pcs;
@@ -52,6 +54,7 @@ use itertools::Itertools;
 use lang_profile::LangProfile;
 use log::debug;
 
+pub use textual_merge_strategy::TextualMergeStrategy;
 use merge_result::MergeResult;
 use parsed_merge::{PARSED_MERGE_DIFF2_DETECTED, ParsedMerge};
 use pcs::Revision;
@@ -82,6 +85,7 @@ fn resolve_merge<'a>(
     lang_profile: &LangProfile,
     debug_dir: Option<&Path>,
     print_chunks: bool,
+    textual_merger: TextualMergeStrategy,
 ) -> Result<MergeResult, String> {
     let start = Instant::now();
 
@@ -103,6 +107,7 @@ fn resolve_merge<'a>(
         lang_profile,
         debug_dir,
         print_chunks,
+        textual_merger,
     )
 }
 
@@ -168,7 +173,7 @@ mod test {
 ";
         let settings = DisplaySettings::default();
         let parsed = ParsedMerge::parse(contents, &settings).unwrap();
-        let result = resolve_merge(&parsed, &settings, LangProfile::rust(), None, false);
+        let result = resolve_merge(&parsed, &settings, LangProfile::rust(), None, false, TextualMergeStrategy::Structured);
         assert_eq!(result, Err(ZDIFF3_DETECTED.to_string()));
     }
 }

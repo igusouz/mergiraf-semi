@@ -6,6 +6,7 @@ use typed_arena::Arena;
 use crate::{
     MergeResult, Revision, ast::AstNode, lang_profile::LangProfile, merge_3dm::three_way_merge,
     parsed_merge::ParsedMerge, settings::DisplaySettings, tree_matcher::TreeMatcher,
+    TextualMergeStrategy,
 };
 
 pub const STRUCTURED_RESOLUTION_METHOD: &str = "structured_resolution";
@@ -30,6 +31,7 @@ pub fn structured_merge(
     lang_profile: &LangProfile,
     debug_dir: Option<&Path>,
     print_chunks: bool,
+    textual_merger: TextualMergeStrategy,
 ) -> Result<MergeResult, String> {
     let arena = Arena::new();
     let ref_arena = Arena::new();
@@ -87,6 +89,7 @@ pub fn structured_merge(
         settings,
         debug_dir,
         print_chunks,
+        textual_merger,
     );
     debug!("{result_tree}");
 

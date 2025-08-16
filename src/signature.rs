@@ -67,6 +67,7 @@ impl<'b> AstNodeEquiv<'_, 'b> {
                     .collect(),
                 MergedTree::Conflict { .. }
                 | MergedTree::LineBasedMerge { .. }
+                | MergedTree::TextuallyMerged { .. }
                 | MergedTree::CommutativeChildSeparator { .. } => Vec::new(),
             },
         }
@@ -104,6 +105,7 @@ impl<'b> AstNodeEquiv<'_, 'b> {
                     .collect(),
                 MergedTree::Conflict { .. }
                 | MergedTree::LineBasedMerge { .. }
+                | MergedTree::TextuallyMerged { .. }
                 | MergedTree::CommutativeChildSeparator { .. } => Vec::new(),
             },
         }
@@ -149,6 +151,7 @@ impl<'b> AstNodeEquiv<'_, 'b> {
                     MergedTree::CommutativeChildSeparator { separator } => {
                         separator.trim() == a.source
                     }
+                    MergedTree::TextuallyMerged { content, .. } => content == a.source,
                 }
             }
             (Self::Merged(a), Self::Merged(b)) => match (a, b) {
@@ -204,6 +207,7 @@ impl<'b> AstNodeEquiv<'_, 'b> {
                 }
                 (MergedTree::MixedTree { .. }, _) | (_, MergedTree::MixedTree { .. }) => false,
                 (MergedTree::Conflict { .. }, _) | (_, MergedTree::Conflict { .. }) => a == b,
+                (MergedTree::TextuallyMerged { .. }, _) | (_, MergedTree::TextuallyMerged { .. }) => a == b,
                 (_, _) => a == b,
             },
         }
@@ -235,6 +239,10 @@ impl Hash for AstNodeEquiv<'_, '_> {
                 }
                 MergedTree::CommutativeChildSeparator { separator } => {
                     separator.hash(state);
+                }
+                MergedTree::TextuallyMerged { content, has_conflict, .. } => {
+                    content.hash(state);
+                    has_conflict.hash(state);
                 }
             },
         }

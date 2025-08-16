@@ -8,7 +8,7 @@ use log::{debug, info, warn};
 use crate::{
     DisplaySettings, LangProfile, MergeResult, PARSED_MERGE_DIFF2_DETECTED, ParsedMerge,
     git::{GitTempFile, GitTempFiles, extract_all_revisions_from_git, read_content_from_commits},
-    resolve_merge, structured_merge,
+    resolve_merge, structured_merge, TextualMergeStrategy,
 };
 
 const FROM_PARSED_ORIGINAL: &str = "from_parsed_original";
@@ -22,6 +22,7 @@ pub fn resolve_merge_cascading<'a>(
     working_dir: &Path,
     language: Option<&str>,
     print_chunks: bool,
+    textual_merger: TextualMergeStrategy,
 ) -> Result<MergeResult, String> {
     let mut solves = Vec::with_capacity(4);
 
@@ -45,7 +46,7 @@ pub fn resolve_merge_cascading<'a>(
         Ok(parsed_merge) => {
             settings.add_revision_names(&parsed_merge);
 
-            match resolve_merge(&parsed_merge, &settings, lang_profile, debug_dir, print_chunks) {
+            match resolve_merge(&parsed_merge, &settings, lang_profile, debug_dir, print_chunks, textual_merger) {
                 Ok(solve) if solve.conflict_count == 0 => {
                     info!("Solved all conflicts.");
                     debug!("Structured merge from reconstructed revisions.");
@@ -73,6 +74,7 @@ pub fn resolve_merge_cascading<'a>(
         working_dir,
         lang_profile,
         print_chunks,
+        textual_merger,
     ) {
         Ok(structured_merge) if structured_merge.conflict_count == 0 => {
             info!("Solved all conflicts.");
@@ -100,6 +102,7 @@ pub fn resolve_merge_cascading<'a>(
         lang_profile,
         parsed.as_ref(),
         print_chunks,
+        textual_merger,
     ) {
         Some(Ok(merge)) if merge.conflict_count == 0 => {
             info!("Solved all conflicts.");
@@ -131,6 +134,7 @@ fn structured_merge_from_git_revisions(
     working_dir: &Path,
     lang_profile: &LangProfile,
     print_chunks: bool,
+    textual_merger: TextualMergeStrategy,
 ) -> Result<MergeResult, FallbackMergeError> {
     let GitTempFiles { base, left, right } =
         extract_all_revisions_from_git(working_dir, fname_base)
@@ -155,7 +159,8 @@ fn structured_merge_from_git_revisions(
         settings,
         lang_profile,
         debug_dir,
-        print_chunks
+        print_chunks,
+        textual_merger,
     )
     .map_err(FallbackMergeError::MergeError)
 }
@@ -175,6 +180,7 @@ fn structured_merge_from_oid(
     lang_profile: &LangProfile,
     parsed: Option<&ParsedMerge<'_>>,
     print_chunks: bool,
+    textual_merger: TextualMergeStrategy,
 ) -> Option<Result<MergeResult, String>> {
     parsed
         .and_then(|p| p.extract_conflict_oids())
@@ -189,6 +195,7 @@ fn structured_merge_from_oid(
                 lang_profile,
                 debug_dir,
                 print_chunks,
+                textual_merger,
             )
         })
 }

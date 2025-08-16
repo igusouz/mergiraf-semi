@@ -43,7 +43,8 @@ impl<'a> MergedTree<'a> {
             Self::ExactTree { .. }
             | Self::Conflict { .. }
             | Self::LineBasedMerge { .. }
-            | Self::CommutativeChildSeparator { .. } => self,
+            | Self::CommutativeChildSeparator { .. }
+            | Self::TextuallyMerged { .. } => self,
         }
     }
 }
@@ -217,7 +218,9 @@ fn is_separator(element: &MergedTree, trimmed_separator: &'static str) -> bool {
         MergedTree::ExactTree { node, .. } => {
             node.as_representative().node.source.trim() == trimmed_separator
         }
-        MergedTree::MixedTree { .. } | MergedTree::Conflict { .. } => false,
+        MergedTree::MixedTree { .. }
+        | MergedTree::Conflict { .. }
+        | MergedTree::TextuallyMerged { .. } => false,
         MergedTree::LineBasedMerge { parsed, .. } => {
             // "SAFETY": a separator is like a comma or something,
             // there is no way it can have a conflict
@@ -308,8 +311,10 @@ fn filter_by_revision<'a>(
         .filter_map(|element| match element {
             MergedTree::ExactTree { node, .. }
             | MergedTree::MixedTree { node, .. }
-            | MergedTree::LineBasedMerge { node, .. } => class_mapping.node_at_rev(node, revision),
-            MergedTree::Conflict { .. } | MergedTree::CommutativeChildSeparator { .. } => None,
+            | MergedTree::LineBasedMerge { node, .. }
+            | MergedTree::TextuallyMerged { node, .. } => class_mapping.node_at_rev(node, revision),
+            MergedTree::Conflict { .. } 
+            | MergedTree::CommutativeChildSeparator { .. } => None,
         })
         .collect()
 }

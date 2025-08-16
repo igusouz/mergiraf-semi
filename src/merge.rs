@@ -15,7 +15,7 @@ use crate::{
     line_based::{
         LINE_BASED_METHOD, line_based_merge, line_based_merge_with_duplicate_signature_detection,
     },
-    resolve_merge, structured_merge,
+    resolve_merge, structured_merge, TextualMergeStrategy,
 };
 
 /// Merge the files textually and then attempt to merge any conflicts
@@ -35,6 +35,7 @@ pub fn line_merge_and_structured_resolution(
     timeout: Duration,
     language: Option<&str>,
     print_chunks: bool,
+    textual_merger: TextualMergeStrategy,
 ) -> MergeResult {
     let Ok(lang_profile) = LangProfile::find_by_filename_or_name(fname_base, language) else {
         return line_based_merge(contents_base, contents_left, contents_right, &settings);
@@ -50,6 +51,7 @@ pub fn line_merge_and_structured_resolution(
         debug_dir,
         timeout,
         print_chunks,
+        textual_merger,
     );
 
     match select_best_merge(merges) {
@@ -94,6 +96,7 @@ pub fn cascading_merge(
     debug_dir: Option<&'static Path>,
     timeout: Duration,
     print_chunks: bool,
+    textual_merger: TextualMergeStrategy,
 ) -> Vec<MergeResult> {
     // first attempt: try to merge as line-based
     let start = Instant::now();
@@ -116,7 +119,7 @@ pub fn cascading_merge(
 
         // second attempt: to solve the conflicts from the line-based merge
         if !line_based_merge.has_additional_issues {
-            let solved_merge = resolve_merge(&parsed_conflicts, &settings, lang_profile, debug_dir, print_chunks);
+            let solved_merge = resolve_merge(&parsed_conflicts, &settings, lang_profile, debug_dir, print_chunks, textual_merger);
 
             match solved_merge {
                 Ok(recovered_merge) => {
@@ -144,6 +147,7 @@ pub fn cascading_merge(
                 lang_profile,
                 debug_dir,
                 print_chunks,
+                textual_merger,
             );
             match structured_merge {
                 Ok(successful_merge) => merges.push(successful_merge),

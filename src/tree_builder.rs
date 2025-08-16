@@ -15,6 +15,8 @@ use crate::{
     multimap::MultiMap,
     pcs::{PCSNode, Revision},
     settings::DisplaySettings,
+    textual_merge::{DiffyMerger, TextualMergeResult, TextualMerger},
+    TextualMergeStrategy,
 };
 
 //Three structs for debug log
@@ -48,7 +50,7 @@ struct LogState<'a> {
 }
 
 // Helper para formatar o log
-fn format_node_list_detailed(nodes: &Vec<&AstNode>) -> String {
+fn format_node_list_detailed(nodes: &Vec<&AstNode>, is_unstable: bool) -> String {
     if nodes.is_empty() {
         return "-".to_string();
     }
@@ -65,13 +67,18 @@ fn format_node_list_detailed(nodes: &Vec<&AstNode>) -> String {
     };
     const MAX_NODES_TO_SHOW: usize = 3;
     const MAX_CONTENT_LEN: usize = 25;
+
     let descriptions: Vec<String> = nodes.iter().map(|n| {
-        let mut content = n.source.replace(['\n', '\r'], " ").trim().to_string();
-        if content.len() > MAX_CONTENT_LEN {
-            content.truncate(MAX_CONTENT_LEN - 3);
-            content.push_str("...");
+        if is_unstable || n.is_leaf(){
+            let mut content = n.source.replace(['\n', '\r'], " ").trim().to_string();
+            if content.len() > MAX_CONTENT_LEN {
+                content.truncate(MAX_CONTENT_LEN - 3);
+                content.push_str("...");
+            }
+            format!("{}: '{}'", n.grammar_name, content)
+        } else {
+            format!("{}", n.grammar_name)
         }
-        format!("{}: '{}'", n.grammar_name, content)
     }).take(MAX_NODES_TO_SHOW).collect();
     let mut summary = format!("[{}]", descriptions.join(", "));
     if nodes.len() > MAX_NODES_TO_SHOW {
@@ -116,6 +123,7 @@ pub struct TreeBuilder<'a, 'b> {
     class_mapping: &'b ClassMapping<'a>,
     settings: &'b DisplaySettings<'a>,
     print_chunks: bool,
+    textual_merger: TextualMergeStrategy,
 }
 
 /// Variable state, keeping track of visited nodes to avoid looping
@@ -141,6 +149,7 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
         class_mapping: &'b ClassMapping<'a>,
         settings: &'b DisplaySettings<'a>,
         print_chunks: bool,
+        textual_merger: TextualMergeStrategy,
     ) -> Self {
         TreeBuilder {
             merged_successors: SuccessorMap::new(merged_changeset),
@@ -148,6 +157,7 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
             class_mapping,
             settings,
             print_chunks,
+            textual_merger,
         }
     }
 
@@ -178,16 +188,16 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
                     MergeChunk::Stable(data) => {
                         chunk_counter += 1;
                         info!("-- stable chunk #{} --", chunk_counter);
-                        info!("    Left (L):  {}", format_node_list_detailed(&data.left_nodes));
-                        info!("    Base (B):  {}", format_node_list_detailed(&data.base_nodes));
-                        info!("    Right (R): {}", format_node_list_detailed(&data.right_nodes));
+                        info!("    Left (L):  {}", format_node_list_detailed(&data.left_nodes, false));
+                        info!("    Base (B):  {}", format_node_list_detailed(&data.base_nodes, false));
+                        info!("    Right (R): {}", format_node_list_detailed(&data.right_nodes, false));
                     }
                     MergeChunk::Unstable(data) => {
                         chunk_counter += 1;
                         info!("-- unstable chunk #{} --", chunk_counter);
-                        info!("    Left (L):  {}", format_node_list_detailed(&data.left_nodes));
-                        info!("    Base (B):  {}", format_node_list_detailed(&data.base_nodes));
-                        info!("    Right (R): {}", format_node_list_detailed(&data.right_nodes));
+                        info!("    Left (L):  {}", format_node_list_detailed(&data.left_nodes, true));
+                        info!("    Base (B):  {}", format_node_list_detailed(&data.base_nodes, true));
+                        info!("    Right (R): {}", format_node_list_detailed(&data.right_nodes, true));
                     }
                     MergeChunk::CommutativeResolutionStart { parent_kind } => {
                         info!("---> START: UNORDERED MERGE CONFLICT RESOLUTION FOR '{}'...", parent_kind);
@@ -243,6 +253,44 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
         visiting_state: &mut VisitingState<'a>,
         log_state: &mut Option<LogState<'a>>,
     ) -> Result<MergedTree<'a>, String> {
+
+        if let PCSNode::Node {node: leader, .. } = node {
+            if self.textual_merger != TextualMergeStrategy::Structured && 
+            leader.lang_profile().truncation_node_kinds.contains(leader.grammar_name()) {
+
+                let left_node = self.class_mapping.node_at_rev(&leader, Revision::Left)
+                    .ok_or_else(|| "Truncated note not found on Left revision".to_string())?;
+                let right_node = self.class_mapping.node_at_rev(&leader, Revision::Right)
+                    .ok_or_else(|| "Truncated note not found on Right revision".to_string())?;
+                let base_node_opt = self.class_mapping.node_at_rev(&leader, Revision::Base);
+
+                let base_source = base_node_opt.map_or(left_node.source, |n| n.source);
+
+                let merger: Box<dyn TextualMerger> = match self.textual_merger {
+                    TextualMergeStrategy::Diff3 => Box::new(DiffyMerger),
+                    //add other diff strategies here
+                    _ => unimplemented!(),
+                };
+
+                let text_result = merger.merge(base_source, left_node.source, right_node.source);
+
+                let merged_node = match text_result {
+                    TextualMergeResult::Success(content) => MergedTree::TextuallyMerged {
+                        node: leader,
+                        content,
+                        has_conflict: false,
+                    },
+                    TextualMergeResult::Conflict(content) => MergedTree::TextuallyMerged {
+                        node: leader,
+                        content,
+                        has_conflict: true,
+                    },
+                };
+
+                return Ok(merged_node);
+            }
+        }
+
         if let PCSNode::Node { node, .. } = node {
             let visited = &mut visiting_state.visited_nodes;
             if visited.contains(&node) {
@@ -1184,7 +1232,9 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
                 }
             }
             MergedTree::CommutativeChildSeparator { .. } => Some(HashSet::new()), // commutative separators are uninteresting, they don't need covering
-            MergedTree::Conflict { .. } | MergedTree::LineBasedMerge { .. } => None,
+            MergedTree::Conflict { .. } 
+            | MergedTree::LineBasedMerge { .. }
+            | MergedTree::TextuallyMerged { .. } => None,
         }
     }
 }

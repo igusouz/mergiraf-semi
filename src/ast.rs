@@ -218,6 +218,39 @@ impl<'a> AstNode<'a> {
     ) -> Result<&'a Self, String> {
         let field_name = cursor.field_name();
         let node = cursor.node();
+        let grammar_name = node.grammar_name();
+
+        if lang_profile.truncation_node_kinds.contains(grammar_name) {
+            let range = node.byte_range();
+            let local_source = &global_source[range.start..range.end];
+
+            let mut hasher = crate::fxhasher();
+            grammar_name.hash(&mut hasher);
+            local_source.hash(&mut hasher);
+
+            let result = arena.alloc(Self {
+                hash: hasher.finish(),
+                children: Vec::new(),
+                field_to_children: FxHashMap::default(),
+                source: local_source,
+                grammar_name,
+                field_name,
+                byte_range: range.clone(),
+                start_point: node.start_position(),
+                end_point: node.end_position(),
+                id: *next_node_id,
+                descendant_count: 1,
+                parent: UnsafeCell::new(None),
+                commutative_parent: None,
+                dfs: UnsafeCell::new(None),
+                lang_profile,
+            });
+            *next_node_id += 1;
+            return Ok(result);
+        }
+
+
+
         let atomic = lang_profile.is_atomic_node_type(node.grammar_name());
 
         let mut children = Vec::new();
@@ -344,8 +377,6 @@ impl<'a> AstNode<'a> {
                 offset += line.len() + 1;
             }
         }
-
-        let grammar_name = node.grammar_name();
 
         // pre-compute a hash value that is invariant under isomorphism
         let mut hasher = crate::fxhasher();

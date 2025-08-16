@@ -2,6 +2,7 @@ use std::{collections::HashSet, ffi::OsStr, fmt::Display, hash::Hash, path::Path
 
 use itertools::Itertools;
 use tree_sitter::Language;
+use rustc_hash::FxHashSet;
 
 use crate::{signature::SignatureDefinition, supported_langs::SUPPORTED_LANGUAGES};
 
@@ -29,6 +30,9 @@ pub struct LangProfile {
     /// The injections query to locate nodes that need parsing in other languages.
     /// See https://tree-sitter.github.io/tree-sitter/3-syntax-highlighting.html#language-injection
     pub injections: Option<&'static str>,
+    /// A set of node kinds that should be treated as truncation points.
+    ///The tree construction will stop at these nodes, treating their content as text.
+    pub truncation_node_kinds: FxHashSet<&'static str>,
 }
 
 impl PartialEq for LangProfile {
