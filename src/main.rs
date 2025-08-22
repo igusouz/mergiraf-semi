@@ -59,8 +59,8 @@ struct MergeOrSolveArgs {
     #[arg(long, default_value_t = false)]
     print_chunks: bool,
     /// Chooses a unstructured merge algorithm to be used in semistructured merge
-    #[arg(long, value_enum, default_value_t = TextualMergeStrategy::Structured)]
-    textual_merger: TextualMergeStrategy,
+    #[arg(long, value_enum, value_name = "ALGORITHM")]
+    semistructured: Option<TextualMergeStrategy>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -187,7 +187,7 @@ fn real_main(args: CliArgs) -> Result<i32, String> {
                     conflict_marker_size,
                     language,
                     print_chunks,
-                    textual_merger,
+                    semistructured,
                 },
             timeout,
         } => {
@@ -271,7 +271,7 @@ fn real_main(args: CliArgs) -> Result<i32, String> {
                 Duration::from_millis(timeout.unwrap_or(if fast { 5000 } else { 10000 })),
                 language.as_deref(),
                 print_chunks,
-                textual_merger,
+                semistructured,
             );
             if let Some(fname_out) = output {
                 write_string_to_file(&fname_out, &merge_result.contents)?;
@@ -304,7 +304,7 @@ fn real_main(args: CliArgs) -> Result<i32, String> {
                     conflict_marker_size,
                     language,
                     print_chunks,
-                    textual_merger,
+                    semistructured,
                 },
             keep,
             mut stdout,
@@ -359,7 +359,7 @@ fn real_main(args: CliArgs) -> Result<i32, String> {
                 &working_dir,
                 language.as_deref(),
                 print_chunks,
-                textual_merger,
+                semistructured,
             );
             match postprocessed {
                 Ok(merged) => {

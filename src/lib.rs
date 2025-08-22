@@ -85,7 +85,7 @@ fn resolve_merge<'a>(
     lang_profile: &LangProfile,
     debug_dir: Option<&Path>,
     print_chunks: bool,
-    textual_merger: TextualMergeStrategy,
+    semistructured: Option<TextualMergeStrategy>,
 ) -> Result<MergeResult, String> {
     let start = Instant::now();
 
@@ -107,7 +107,7 @@ fn resolve_merge<'a>(
         lang_profile,
         debug_dir,
         print_chunks,
-        textual_merger,
+        semistructured,
     )
 }
 

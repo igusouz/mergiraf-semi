@@ -58,7 +58,7 @@ pub(crate) fn line_based_merge_with_duplicate_signature_detection(
         let arena = Arena::new();
         let ref_arena = Arena::new();
 
-        let tree = AstNode::parse(contents, lang_profile, &arena, &ref_arena);
+        let tree = AstNode::parse(contents, lang_profile, &arena, &ref_arena, false);
 
         tree.map_or(true, AstNode::has_signature_conflicts)
     };

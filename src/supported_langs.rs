@@ -178,7 +178,12 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("element_value_pair", vec![vec![Field("key")]]),
             ],
             injections: None,
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "method_declaration",
+                "field_declaration",
+                "constructor_declaration",
+                "import_declaration",
+            ].into_iter().collect(),
         },
         LangProfile {
             name: "Java properties",
@@ -243,7 +248,15 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("override", vec![vec![]]),
             ],
             injections: None,
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "function_declaration",
+                "property_declaration",
+                "primary_constructor",
+                "secondary_constructor",
+                "import_header",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "Rust",
@@ -351,7 +364,13 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("base_field_initializer", vec![]), // maximum one per field_initializer_list
             ],
             injections: Some(tree_sitter_rust_orchard::INJECTIONS_QUERY),
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "function_item",
+                "field_declaration",
+                "use_declaration",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "Go",
@@ -390,7 +409,14 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("keyed_element", vec![vec![Field("key")]]),
             ],
             injections: None,
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "method_declaration",
+                "field_declaration",
+                "function_declaration",
+                "import_declaration",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "go.mod",
@@ -524,7 +550,14 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("jsx_attribute", vec![vec![ChildType("identifier")]]),
             ],
             injections: Some(tree_sitter_javascript::INJECTIONS_QUERY),
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "method_definition",
+                "public_field_definition",
+                "assignment_expression",
+                "import_statement",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "JSON",
@@ -641,7 +674,13 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("field_declaration", vec![vec![Field("declarator")]]), // TODO this isn't quite right, as the "*" of a pointer type will end up in the signature
             ],
             injections: None,
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "function_definition",
+                "field_declaration",
+                "preproc_include",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "C#",
@@ -715,7 +754,14 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("enum_member_declaration", vec![vec![Field("name")]]),
             ],
             injections: None,
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "method_declaration",
+                "field_declaration",
+                "constructor_declaration",
+                "using_directive",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "Dart",
@@ -774,7 +820,13 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
             commutative_parents: typescript_commutative_parents,
             signatures: typescript_signatures,
             injections: None,
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "method_definition",
+                "public_field_definition",
+                "import_statement",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "Typescript (TSX)",
@@ -786,7 +838,13 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
             commutative_parents: tsx_commutative_parents,
             signatures: tsx_signatures,
             injections: None,
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "method_definition",
+                "public_field_definition",
+                "import_statement",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "Python",
@@ -833,7 +891,13 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("string", vec![vec![]]), // for elements of __all__ lists
             ],
             injections: None,
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "function_definition",
+                "import_statement",
+                "import_from_statement",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "PHP",
@@ -881,7 +945,13 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("attribute_list", vec![vec![]]),
             ],
             injections: Some(tree_sitter_php::INJECTIONS_QUERY),
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "method_declaration",
+                "property_declaration",
+                "namespace_use_declaration",
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "Solidity",
@@ -920,7 +990,14 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
             commutative_parents: vec![],
             signatures: vec![],
             injections: None,
-            truncation_node_kinds: FxHashSet::default(),
+            truncation_node_kinds: [
+                "method", // Method & Constructor (if name is `initialize`)
+                // Field declaration is an `assignment` to an `instance_variable`.
+                // Truncating all assignments is too broad.
+                // Import (`require`) is a `call` node, also too broad.
+            ]
+            .into_iter()
+            .collect(),
         },
         LangProfile {
             name: "Elixir",

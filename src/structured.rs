@@ -31,7 +31,7 @@ pub fn structured_merge(
     lang_profile: &LangProfile,
     debug_dir: Option<&Path>,
     print_chunks: bool,
-    textual_merger: TextualMergeStrategy,
+    semistructured: Option<TextualMergeStrategy>,
 ) -> Result<MergeResult, String> {
     let arena = Arena::new();
     let ref_arena = Arena::new();
@@ -50,9 +50,12 @@ pub fn structured_merge(
     };
 
     let start = Instant::now();
-    let tree_base = AstNode::parse(contents_base, lang_profile, &arena, &ref_arena);
-    let tree_left = AstNode::parse(contents_left, lang_profile, &arena, &ref_arena);
-    let tree_right = AstNode::parse(contents_right, lang_profile, &arena, &ref_arena);
+
+    let should_truncate = semistructured.is_some();
+
+    let tree_base = AstNode::parse(contents_base, lang_profile, &arena, &ref_arena, should_truncate);
+    let tree_left = AstNode::parse(contents_left, lang_profile, &arena, &ref_arena, should_truncate);
+    let tree_right = AstNode::parse(contents_right, lang_profile, &arena, &ref_arena, should_truncate);
     debug!("parsing all three files took {:?}", start.elapsed());
 
     // detect a merge in zdiff3 style
@@ -89,7 +92,7 @@ pub fn structured_merge(
         settings,
         debug_dir,
         print_chunks,
-        textual_merger,
+        semistructured,
     );
     debug!("{result_tree}");
 
@@ -110,6 +113,7 @@ pub fn structured_merge(
             lang_profile,
             &arena,
             &ref_arena,
+            false, //merge tree should never be truncated due to isomorphism checks
         )
         .map_err(|err| {
             format!(

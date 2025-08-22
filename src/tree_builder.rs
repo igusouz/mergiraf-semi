@@ -123,7 +123,7 @@ pub struct TreeBuilder<'a, 'b> {
     class_mapping: &'b ClassMapping<'a>,
     settings: &'b DisplaySettings<'a>,
     print_chunks: bool,
-    textual_merger: TextualMergeStrategy,
+    semistructured_strategy: Option<TextualMergeStrategy>,
 }
 
 /// Variable state, keeping track of visited nodes to avoid looping
@@ -149,7 +149,7 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
         class_mapping: &'b ClassMapping<'a>,
         settings: &'b DisplaySettings<'a>,
         print_chunks: bool,
-        textual_merger: TextualMergeStrategy,
+        semistructured_strategy: Option<TextualMergeStrategy>,
     ) -> Self {
         TreeBuilder {
             merged_successors: SuccessorMap::new(merged_changeset),
@@ -157,7 +157,7 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
             class_mapping,
             settings,
             print_chunks,
-            textual_merger,
+            semistructured_strategy,
         }
     }
 
@@ -254,9 +254,8 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
         log_state: &mut Option<LogState<'a>>,
     ) -> Result<MergedTree<'a>, String> {
 
-        if let PCSNode::Node {node: leader, .. } = node {
-            if self.textual_merger != TextualMergeStrategy::Structured && 
-            leader.lang_profile().truncation_node_kinds.contains(leader.grammar_name()) {
+        if let (Some(textual_merger), PCSNode::Node {node: leader, .. }) = (self.semistructured_strategy, node) {
+            if leader.lang_profile().truncation_node_kinds.contains(leader.grammar_name()) {
 
                 let left_node = self.class_mapping.node_at_rev(&leader, Revision::Left)
                     .ok_or_else(|| "Truncated note not found on Left revision".to_string())?;
@@ -266,10 +265,9 @@ impl<'a, 'b> TreeBuilder<'a, 'b> {
 
                 let base_source = base_node_opt.map_or(left_node.source, |n| n.source);
 
-                let merger: Box<dyn TextualMerger> = match self.textual_merger {
+                let merger: Box<dyn TextualMerger> = match textual_merger {
                     TextualMergeStrategy::Diff3 => Box::new(DiffyMerger),
                     //add other diff strategies here
-                    _ => unimplemented!(),
                 };
 
                 let text_result = merger.merge(base_source, left_node.source, right_node.source);

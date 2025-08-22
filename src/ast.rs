@@ -75,9 +75,10 @@ impl<'a> AstNode<'a> {
         lang_profile: &'a LangProfile,
         arena: &'a Arena<Self>,
         ref_arena: &'a Arena<&'a Self>,
+        semistructured: bool,
     ) -> Result<&'a Self, String> {
         let mut next_node_id = 1;
-        let root = Self::parse_root(source, None, lang_profile, arena, &mut next_node_id)?;
+        let root = Self::parse_root(source, None, lang_profile, arena, &mut next_node_id, semistructured)?;
         root.internal_precompute_root_dfs(ref_arena);
         Ok(root)
     }
@@ -91,6 +92,7 @@ impl<'a> AstNode<'a> {
         lang_profile: &'a LangProfile,
         arena: &'a Arena<Self>,
         next_node_id: &mut usize,
+        semistructured: bool,
     ) -> Result<&'a Self, String> {
         let mut parser = Parser::new();
         parser
@@ -121,6 +123,7 @@ impl<'a> AstNode<'a> {
             &node_id_to_injection_lang,
             &node_id_to_commutative_parent,
             Some(range_for_root),
+            semistructured,
         )
     }
 
@@ -215,12 +218,13 @@ impl<'a> AstNode<'a> {
         node_id_to_injection_lang: &FxHashMap<usize, &'static LangProfile>,
         node_id_to_commutative_parent: &FxHashMap<usize, &'a CommutativeParent>,
         range_for_root: Option<Range<usize>>,
+        semistructured: bool,
     ) -> Result<&'a Self, String> {
         let field_name = cursor.field_name();
         let node = cursor.node();
         let grammar_name = node.grammar_name();
 
-        if lang_profile.truncation_node_kinds.contains(grammar_name) {
+        if semistructured && lang_profile.truncation_node_kinds.contains(grammar_name) {
             let range = node.byte_range();
             let local_source = &global_source[range.start..range.end];
 
@@ -267,6 +271,7 @@ impl<'a> AstNode<'a> {
                 injection_lang,
                 arena,
                 next_node_id,
+                semistructured,
             ) {
                 children.push(injected_root);
                 last_child_end = injected_root.byte_range.end;
@@ -283,6 +288,7 @@ impl<'a> AstNode<'a> {
                     node_id_to_injection_lang,
                     node_id_to_commutative_parent,
                     None,
+                    semistructured,
                 )?;
                 children.push(child);
                 if let Some(field_name) = cursor.field_name() {
