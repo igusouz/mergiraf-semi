@@ -55,11 +55,13 @@ pub fn three_way_merge<'a>(
     );
 
     // create a classmapping
-    let class_mapping = create_class_mapping(
+    let mut class_mapping = create_class_mapping(
         &base_left_matching,
         &base_right_matching,
         &left_right_matching,
     );
+
+    class_mapping.unify_concurrent_additions();
 
     // convert all the trees to PCS triples
     let (changeset, base_changeset) =
@@ -353,6 +355,8 @@ mod tests {
             &auxiliary_matcher,
             &settings,
             None,
+            false,
+            None,
         );
 
         debug!("{merged_tree}");
@@ -380,6 +384,8 @@ mod tests {
             &primary_matcher,
             &auxiliary_matcher,
             &settings,
+            None,
+            false,
             None,
         );
 
@@ -419,6 +425,8 @@ mod tests {
             &auxiliary_matcher,
             &settings,
             None,
+            false,
+            None,
         );
 
         let pretty_printed = result_tree.pretty_print(&class_mapping, &settings);
@@ -456,6 +464,8 @@ mod tests {
             &primary_matcher,
             &auxiliary_matcher,
             &settings,
+            None,
+            false,
             None,
         );
 
@@ -495,6 +505,8 @@ mod tests {
             &auxiliary_matcher,
             &settings,
             None,
+            false,
+            None,
         );
 
         let pretty_printed = merged_tree.pretty_print(&class_mapping, &settings);
@@ -533,6 +545,8 @@ mod tests {
             &auxiliary_matcher,
             &settings,
             None,
+            false,
+            None,
         );
 
         let pretty_printed = merged_tree.pretty_print(&class_mapping, &settings);
@@ -559,6 +573,8 @@ mod tests {
             &primary_matcher,
             &auxiliary_matcher,
             &settings,
+            None,
+            false,
             None,
         );
 
@@ -587,6 +603,8 @@ mod tests {
             &auxiliary_matcher,
             &settings,
             None,
+            false,
+            None,
         );
 
         let pretty_printed = merged_tree.pretty_print(&class_mapping, &settings);
@@ -613,6 +631,8 @@ mod tests {
             &primary_matcher,
             &auxiliary_matcher,
             &settings,
+            None,
+            false,
             None,
         );
 
@@ -659,6 +679,8 @@ mod tests {
             &primary_matcher,
             &auxiliary_matcher,
             &settings,
+            None,
+            false,
             None,
         );
 
@@ -743,6 +765,8 @@ fn baz() {
             &primary_matcher,
             &auxiliary_matcher,
             &settings,
+            None,
+            false,
             None,
         );
 
