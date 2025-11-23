@@ -1,0 +1,15 @@
+body {
+    background-color: #fafafa;
+}
+
+header {
+    color: #333;
+}
+
+button:hover {
+    background-color: #2d89c6;
+}
+
+.card {
+    background-color: #fdfdfd;
+}
