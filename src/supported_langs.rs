@@ -1188,32 +1188,39 @@ pub static SUPPORTED_LANGUAGES: LazyLock<Vec<LangProfile>> = LazyLock::new(|| {
                 signature("rule_set", vec![ vec![Field("selector")] ]),
             ],
             injections: None,
-            truncation_node_kinds: FxHashSet::from_iter([
+            // truncation_node_kinds: FxHashSet::default()
+            // truncation_node_kinds: FxHashSet::from_iter([
+            //     "stylesheet",
+            //     "style_rule",
+            //     "rule_set",
+            //     "block",
+            // ]),
+            truncation_node_kinds: [
                 "stylesheet",
                 "style_rule",
                 "rule_set",
                 "block",
-            ]),
+            ].into_iter().collect() 
         },
-        // LangProfile {
-        //     name: "Gherkin",
-        //     alternate_names: &["Cucumber"],
-        //     extensions: vec!["feature"],
-        //     file_names: vec![],
-        //     language: tree_sitter_gherkin::LANGUAGE.into(),
-        //     atomic_nodes: vec![
-        //         "step",
-        //         "scenario",
-        //         "scenario_outline",
-        //         "feature",
-        //         "examples",
-        //         "tag",
-        //     ],
-        //     commutative_parents: vec![],
-        //     signatures: vec![],
-        //     injections: None,
-        //     truncation_node_kinds: FxHashSet::default()
-        // },
+        LangProfile {
+            name: "Gherkin",
+            alternate_names: &["Cucumber"],
+            extensions: vec!["feature"],
+            file_names: vec![],
+            language: tree_sitter_gherkin::LANGUAGE.into(),
+            atomic_nodes: vec![
+                "step",
+                "scenario",
+                "scenario_outline",
+                "feature",
+                "examples",
+                "tag",
+            ],
+            commutative_parents: vec![],
+            signatures: vec![],
+            injections: None,
+            truncation_node_kinds: FxHashSet::default()
+        },
         LangProfile {
             name: "GNU Make",
             alternate_names: &[],
